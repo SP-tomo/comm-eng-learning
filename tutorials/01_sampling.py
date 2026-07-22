@@ -99,14 +99,13 @@ for i, fs in enumerate(fs_list):
     x_sampled = np.sin(2 * np.pi * f0 * t_sampled)
 
     nyquist_ok = fs >= 2 * f0
-    status = "✓ ナイキスト条件OK" if nyquist_ok else "✗ エイリアシング発生！"
+    status = "[OK] ナイキスト条件OK" if nyquist_ok else "[NG] エイリアシング発生！"
     color = 'green' if nyquist_ok else 'red'
 
     axes[i].plot(t_cont, x_cont, 'b-', alpha=0.3, linewidth=1, label='元の連続信号')
     axes[i].stem(t_sampled, x_sampled, linefmt=f'{color[0]}-', markerfmt=f'{color[0]}o',
-                 basefmt='k-', label=f'サンプル点 (fₛ={fs} Hz)')
-    axes[i].set_title(f'fₛ = {fs} Hz  ({status})', fontsize=11,
-                      color='darkgreen' if nyquist_ok else 'darkred')
+                 basefmt='k-', label=f'サンプル点 (fs={fs} Hz)')
+    axes[i].set_title(f'fs = {fs} Hz  ({status})', fontsize=12, color=color, fontweight='bold')
     axes[i].set_xlabel('時間 t [秒]')
     axes[i].set_ylabel('振幅')
     axes[i].legend(fontsize=8)
@@ -308,7 +307,7 @@ for i, fs in enumerate(fs_comp_list):
     error = np.max(np.abs(x_comp - x_r))
 
     nyquist_ok = fs >= 30
-    status = "✓ OK" if nyquist_ok else "✗ エイリアシング"
+    status = "[OK]" if nyquist_ok else "[NG] エイリアシング"
 
     axes[i].plot(t_fine, x_comp, 'b-', alpha=0.3, label='元の信号')
     axes[i].plot(t_fine, x_r, 'r-', linewidth=1.5, label='再構成')

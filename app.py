@@ -145,10 +145,11 @@ def theoretical_ber(EbN0_dB, modulation):
 #  タブ構成
 # ====================================================================
 
-tab1, tab2, tab3 = st.tabs([
+tab1, tab2, tab3, tab4 = st.tabs([
     "🔬 サンプリング定理 & エイリアシング",
     "🎛️ パルス整形 & アイパターン",
-    "📊 AWGN & 変調方式"
+    "📊 AWGN & 変調方式",
+    "🛡️ 誤り訂正と符号化"
 ])
 
 # ====================================================================
@@ -167,6 +168,25 @@ with tab1:
     <em>2·f<sub>max</sub></em> を <strong>ナイキストレート</strong> と呼びます。
     </div>
     """, unsafe_allow_html=True)
+    
+    with st.expander("📐 数式的・厳密な解説（サンプリング定理の証明とフーリエ変換）"):
+        st.markdown("""
+        **1. 理想標本化とインパルス列:**
+        連続時間信号 $x(t)$ を周期 $T_s = 1/f_s$ で標本化する操作は、デルタ関数の列 $p(t) = \sum_{n=-\infty}^\infty \delta(t - nT_s)$ を乗じることと等価です。
+        標本化された信号 $x_s(t)$ は次のように表されます。
+        """)
+        st.latex(r"x_s(t) = x(t) p(t) = \sum_{n=-\infty}^\infty x(nT_s) \delta(t - nT_s)")
+        st.markdown("""
+        **2. 周波数領域での畳み込み（エイリアシングの数式的意味）:**
+        時間領域での積は、周波数領域での畳み込みになります。$p(t)$ のフーリエ変換 $P(f)$ は $f_s$ 間隔のインパルス列となるため、標本化信号のスペクトル $X_s(f)$ は元のスペクトル $X(f)$ が $f_s$ ごとに反復されたものになります。
+        """)
+        st.latex(r"X_s(f) = X(f) * P(f) = f_s \sum_{k=-\infty}^\infty X(f - k f_s)")
+        st.markdown("""
+        **3. 復元定理 (sinc 補間):**
+        もし $f_s > 2 f_{max}$ ならば、繰り返されたスペクトル同士は重ならず、低域通過フィルタ（理想ローパスフィルタ）で元の $X(f)$ を切り出すことができます。
+        理想ローパスフィルタのインパルス応答は $\text{sinc}$ 関数となるため、時間領域での完全復元式（シャノン・染谷のサンプリング定理）は以下になります。
+        """)
+        st.latex(r"x(t) = \sum_{n=-\infty}^\infty x(nT_s) \text{sinc}\left( \frac{t - nT_s}{T_s} \right)")
 
     col1, col2 = st.columns([1, 3])
 
@@ -251,6 +271,16 @@ with tab1:
     • スライダーでサンプリング周波数を <strong>ナイキストレート (2f₀) を跨いで</strong> 変化させてみてください！
     </div>
     """, unsafe_allow_html=True)
+    
+    with st.expander("📝 演習問題に挑戦（サンプリング定理）"):
+        st.markdown("**問題:** 最高周波数が $4\\text{kHz}$ に帯域制限された音声信号をサンプリングするとき、ナイキストレートは何 $\\text{kHz}$ でしょうか？")
+        ans_q1 = st.radio("選択肢:", ["2 kHz", "4 kHz", "8 kHz", "16 kHz"], key="q1_tab1")
+        if st.button("解答を確認する", key="btn_q1_tab1"):
+            if ans_q1 == "8 kHz":
+                st.success("✅ 正解です！")
+                st.markdown("**解説:** ナイキストレートは信号の最大周波数 $f_{\\max}$ の2倍で定義されます。したがって $2 \\times 4\\text{kHz} = 8\\text{kHz}$ となります。電話の音声サンプリング周波数が $8\\text{kHz}$ であるのもこれが理由です。")
+            else:
+                st.error("❌ 不正解です。ナイキストレートの定義（最大周波数の2倍）を思い出してみましょう。")
 
 
 # ====================================================================
@@ -268,6 +298,23 @@ with tab2:
     <strong>Raised Cosine (RC) フィルタ</strong> はこの条件を満たす代表的なフィルタです。
     </div>
     """, unsafe_allow_html=True)
+    
+    with st.expander("📐 数式的・厳密な解説（ナイキスト条件とRaised Cosine）"):
+        st.markdown("""
+        **1. 符号間干渉 (ISI) のない伝送条件 (Nyquist ISI Criterion):**
+        受信側でサンプリング周期 $T$ ごとに正しくシンボルを判定するためには、パルス波形 $p(t)$ が $t = nT$ において、自身 ($n=0$) 以外でゼロになる必要があります。
+        """)
+        st.latex(r"p(nT) = \begin{cases} 1 & (n = 0) \\ 0 & (n \neq 0) \end{cases}")
+        st.markdown("""
+        これを周波数領域で考えると、パルスのスペクトル $P(f)$ は以下の「ナイキスト条件」を満たさなければなりません。
+        """)
+        st.latex(r"\sum_{k=-\infty}^\infty P\left(f - \frac{k}{T}\right) = T \quad \text{(定数)}")
+        st.markdown("""
+        **2. レイズドコサイン・フィルタ (Raised Cosine Filter):**
+        理想的な矩形スペクトル（帯域幅 $1/2T$）は実現不可能ですが、レイズドコサイン・フィルタはナイキスト条件を満たしつつ、スペクトルの端を滑らか（余弦波状）に減衰させることで実現可能にしたものです。ロールオフ率 $\alpha$ ($0 \le \alpha \le 1$) はその傾斜の緩やかさを表します。
+        時間領域のインパルス応答は以下のようになります。
+        """)
+        st.latex(r"p(t) = \text{sinc}\left(\frac{t}{T}\right) \frac{\cos\left(\pi \alpha \frac{t}{T}\right)}{1 - \left(2\alpha \frac{t}{T}\right)^2}")
 
     col1, col2 = st.columns([1, 3])
 
@@ -375,6 +422,16 @@ with tab2:
     </div>
     """, unsafe_allow_html=True)
 
+    with st.expander("📝 演習問題に挑戦（パルス整形）"):
+        st.markdown("**問題:** シンボルレートが $10\\text{MBaud}$、ロールオフ率 $\\alpha = 0.5$ のレイズドコサインフィルタを用いた場合、必要な絶対帯域幅 $W$ はいくらか？")
+        ans_q2 = st.radio("選択肢:", ["5 MHz", "7.5 MHz", "10 MHz", "15 MHz"], key="q2_tab2")
+        if st.button("解答を確認する", key="btn_q2_tab2"):
+            if ans_q2 == "7.5 MHz":
+                st.success("✅ 正解です！")
+                st.markdown("**解説:** ナイキスト帯域幅は $W_0 = R_s / 2 = 5\\text{MHz}$ です。ロールオフ率 $\\alpha$ のとき絶対帯域幅は $W = W_0(1 + \\alpha) = 5 \\times (1 + 0.5) = 7.5\\text{MHz}$ となります。")
+            else:
+                st.error("❌ 不正解です。絶対帯域幅は $W = \\frac{R_s}{2}(1 + \\alpha)$ で計算されます。")
+
 
 # ====================================================================
 #  タブ 3: AWGN & 変調方式
@@ -390,6 +447,23 @@ with tab3:
     ノイズ <em>n</em> は全周波数に均等（<strong>白色</strong>）で、振幅がガウス分布（<strong>ガウス性</strong>）に従います。
     </div>
     """, unsafe_allow_html=True)
+
+    with st.expander("📐 数式的・厳密な解説（確率統計とフーリエ変換）"):
+        st.markdown("""
+        **1. 確率統計の視点 (Gaussian):**
+        熱雑音などの自然界の雑音は、無数の独立な微小雑音の和としてモデル化されます。
+        中心極限定理（Central Limit Theorem）により、これらの和は正規分布（ガウス分布）に従います。
+        確率密度関数 (PDF) は次のように表されます：
+        """)
+        st.latex(r"p(n) = \frac{1}{\sqrt{2\pi\sigma^2}} \exp\left(-\frac{n^2}{2\sigma^2}\right)")
+        st.markdown("""
+        **2. フーリエ変換の視点 (White):**
+        「白色」とは、すべての周波数成分を均等に含むことを意味します。
+        パワースペクトル密度 $S_n(f)$ が全帯域で一定値 $N_0/2$ であると定義されます。
+        ウィーナー＝ヒンチン定理により、パワースペクトル密度の逆フーリエ変換は自己相関関数 $R_n(\tau)$ となります：
+        """)
+        st.latex(r"R_n(\tau) = \mathcal{F}^{-1}\{S_n(f)\} = \frac{N_0}{2} \delta(\tau)")
+        st.markdown("これは、時間的に少しでもずれると全く相関がない（完全にランダムである）ことを厳密に示しています。")
 
     col1, col2 = st.columns([1, 3])
 
@@ -481,6 +555,17 @@ with tab3:
 
         st.plotly_chart(fig, width='stretch')
 
+        with st.expander("📐 BERの理論式とQAMの解説"):
+            st.markdown("""
+            **QPSKと4QAMの等価性:**
+            QPSKと4QAMは、信号点の配置が数学的に全く同じ（位相を45度回転させただけ）であり、BER性能は完全に等価です。
+            
+            **理論BERの導出:**
+            AWGNチャネルでの誤り確率は、ガウス分布の裾の面積（Q関数または相補誤差関数 $\text{erfc}$）で計算されます。
+            """)
+            st.latex(r"P_b = \frac{1}{2} \text{erfc}\left( \sqrt{\frac{E_b}{N_0}} \right) = Q\left( \sqrt{\frac{2E_b}{N_0}} \right)")
+            st.markdown("※ Q関数 $Q(x) = \frac{1}{\sqrt{2\pi}} \int_x^\infty \exp(-u^2/2) du$ は、標準正規分布がしきい値 $x$ を超える確率を表します。")
+
     # ── 連続領域の波形表示 ──
     st.markdown("### 連続領域での AWGN の影響")
 
@@ -536,6 +621,151 @@ with tab3:
         どう劣化するか確認しましょう！
         </div>
         """, unsafe_allow_html=True)
+        
+    with st.expander("📝 演習問題に挑戦（AWGN と通信路容量）"):
+        st.markdown("**問題:** シャノンの通信路容量の公式 $C = W \\log_2(1+S/N)$ を用いて、帯域幅 $W=1\\text{MHz}$、SNRが $3$（真値）のときの限界伝送容量 $C$ を求めよ。")
+        ans_q3 = st.radio("選択肢:", ["1 Mbps", "2 Mbps", "3 Mbps", "4 Mbps"], key="q3_tab3")
+        if st.button("解答を確認する", key="btn_q3_tab3"):
+            if ans_q3 == "2 Mbps":
+                st.success("✅ 正解です！")
+                st.markdown("**解説:** $C = 1\\text{M} \\times \\log_2(1 + 3) = 1\\text{M} \\times \\log_2(4) = 1\\text{M} \\times 2 = 2\\text{Mbps}$ となります。")
+            else:
+                st.error("❌ 不正解です。対数の計算 $\\log_2(4)$ を再確認してみましょう。")
+
+
+# ====================================================================
+#  タブ 4: 誤り訂正と符号化
+# ====================================================================
+
+with tab4:
+    st.markdown("## 🛡️ 誤り訂正と符号化 (Hamming(7,4)符号)")
+    
+    st.markdown("""
+    <div class="concept-box">
+    <strong>📚 誤り訂正の基礎</strong><br>
+    データ（情報ビット）に<strong>冗長ビット（パリティ）</strong>を付加することで、
+    受信側でエラーを検出し、さらに訂正することを可能にします。<br>
+    ここでは、最も基本的なブロック符号である <strong>ハミング(7,4)符号</strong> をシミュレーションします。
+    </div>
+    """, unsafe_allow_html=True)
+    
+    with st.expander("📐 線形ブロック符号の数学的基礎 (行列演算)"):
+        st.markdown("""
+        **1. 生成行列 $G$ と符号化:**
+        4ビットの情報ベクトルを $\mathbf{d}$、7ビットの符号語を $\mathbf{c}$ とすると、
+        符号化は生成行列 $G$ を用いて $\mathbf{c} = \mathbf{d}G \pmod 2$ と表されます。
+        
+        **2. パリティ検査行列 $H$ とシンドローム $S$:**
+        受信語 $\mathbf{r}$ に対し、シンドローム $\mathbf{S} = \mathbf{r}H^T \pmod 2$ を計算します。
+        $\mathbf{S} = \mathbf{0}$ ならばエラーなしと判定します。エラーベクトル $\mathbf{e}$ がある場合、$\mathbf{S} = \mathbf{e}H^T$ となり、これを用いて誤り位置を特定します。
+        
+        **3. なぜ1ビットの誤りを特定できるのか（線形独立性）:**
+        $H$ 行列の各列ベクトルはすべて異なり、かつ非ゼロベクトルになるように構成されています（ハミング符号の特徴）。
+        1ビットエラー $\mathbf{e} = [0, \dots, 1, \dots, 0]$ が発生した時、$\mathbf{S} = \mathbf{e}H^T$ はちょうど $H$ のエラー発生位置の列ベクトルそのものになります。したがって、シンドロームを見るだけでどこが誤ったかが一意に特定できるのです。
+        """)
+
+    col1, col2 = st.columns([1, 2])
+    
+    with col1:
+        st.markdown("### 1. 送信データの生成")
+        data_input = st.text_input("4ビットの情報ビットを入力 (例: 1011)", "1011", key="ham_data")
+        if len(data_input) != 4 or not all(c in '01' for c in data_input):
+            st.error("正確に4桁の0または1を入力してください。")
+            data_bits = np.array([1, 0, 1, 1])
+        else:
+            data_bits = np.array([int(c) for c in data_input])
+            
+        # 符号化 (ハミング 7,4 組織符号)
+        G = np.array([
+            [1, 0, 0, 0, 1, 1, 0],
+            [0, 1, 0, 0, 1, 0, 1],
+            [0, 0, 1, 0, 0, 1, 1],
+            [0, 0, 0, 1, 1, 1, 1]
+        ])
+        H = np.array([
+            [1, 1, 0, 1, 1, 0, 0],
+            [1, 0, 1, 1, 0, 1, 0],
+            [0, 1, 1, 1, 0, 0, 1]
+        ])
+        
+        codeword = np.dot(data_bits, G) % 2
+        st.write(f"符号語 (7ビット): `{''.join(map(str, codeword))}`")
+        
+        st.markdown("### 2. 通信路（エラー発生）")
+        error_pos = st.selectbox("意図的にエラーを起こすビット位置", ["なし", "1", "2", "3", "4", "5", "6", "7"])
+        
+        rx_bits = codeword.copy()
+        if error_pos != "なし":
+            idx = int(error_pos) - 1
+            rx_bits[idx] = (rx_bits[idx] + 1) % 2
+            
+        st.write(f"受信語 (7ビット): `{''.join(map(str, rx_bits))}`")
+        
+        st.markdown("### 3. 受信と誤り訂正")
+        syndrome = np.dot(rx_bits, H.T) % 2
+        syndrome_str = ''.join(map(str, syndrome))
+        st.write(f"シンドローム $S = rH^T$: `{syndrome_str}`")
+        
+        corrected_bits = rx_bits.copy()
+        if syndrome_str == "000":
+            st.success("✅ エラーなし！")
+        else:
+            for i in range(7):
+                if np.array_equal(syndrome, H[:, i]):
+                    st.warning(f"⚠️ {i+1}ビット目にエラーを検出！訂正します。")
+                    corrected_bits[i] = (corrected_bits[i] + 1) % 2
+                    break
+        
+        st.write(f"訂正後のデータ: `{''.join(map(str, corrected_bits[:4]))}`")
+        
+    with col2:
+        st.markdown("### 📊 符号化利得 (Coding Gain) の確認")
+        st.markdown("理論的なBER曲線を比較し、誤り訂正によってどれだけ通信品質が向上するか確認します。")
+        
+        import math
+        
+        ebn0_db_ec = np.arange(0, 11, 0.5)
+        ebn0_lin_ec = 10**(ebn0_db_ec/10)
+        
+        ber_uncoded = 0.5 * erfc(np.sqrt(ebn0_lin_ec))
+        
+        R = 4/7
+        p_ch = 0.5 * erfc(np.sqrt(ebn0_lin_ec * R))
+        
+        ber_coded = np.zeros_like(p_ch)
+        for i, p in enumerate(p_ch):
+            p_w = sum([math.comb(7, k) * (p**k) * ((1-p)**(7-k)) for k in range(2, 8)])
+            ber_coded[i] = (3/7) * p_w
+            
+        ber_coded = np.clip(ber_coded, 1e-8, 1)
+        
+        fig_ec = go.Figure()
+        fig_ec.add_trace(go.Scatter(x=ebn0_db_ec, y=ber_uncoded, mode='lines', name='符号化なし (Uncoded BPSK)'))
+        fig_ec.add_trace(go.Scatter(x=ebn0_db_ec, y=ber_coded, mode='lines', name='ハミング(7,4)符号化', line=dict(dash='dash', color='red')))
+        fig_ec.update_yaxes(type="log", title_text="BER", range=[-6, 0])
+        fig_ec.update_xaxes(title_text="Eb/N₀ [dB]", range=[0, 10])
+        fig_ec.update_layout(height=400, template='plotly_white')
+        
+        st.plotly_chart(fig_ec, use_container_width=True)
+        
+        st.markdown("""
+        <div class="insight-box">
+        <strong>💡 コーディングゲイン（符号化利得）</strong><br>
+        グラフを見ると、高い Eb/N₀（SNR）領域では、赤の破線（符号化あり）の方が同じ Eb/N₀ でもBERが大幅に低くなります。<br>
+        この横軸の差（例: BER=10⁻⁴ を達成するための Eb/N₀ の差）を <strong>符号化利得</strong> と呼びます。<br>
+        ただし、冗長ビットの追加により1ビットあたりの送信エネルギーが減るため、Eb/N₀ が約 5.5 dB 以下の領域では逆に性能が劣化（符号化ロス）することに注意してください。
+        </div>
+        """, unsafe_allow_html=True)
+
+    with st.expander("📝 演習問題に挑戦（誤り訂正とシンドローム）"):
+        st.markdown("**問題:** ハミング(7,4)符号のパリティ検査行列 $H$ において、受信語のシンドロームが $S = [1, 0, 1]$ となった。このとき、どのビットに誤りが発生したと推定されるか？（※上記の $H$ 行列を参照してください）")
+        ans_q4 = st.radio("選択肢:", ["2ビット目", "4ビット目", "6ビット目", "7ビット目"], key="q4_tab4")
+        if st.button("解答を確認する", key="btn_q4_tab4"):
+            if ans_q4 == "2ビット目":
+                st.success("✅ 正解です！")
+                st.markdown("**解説:** シンドローム $S=[1,0,1]$ は、パリティ検査行列 $H$ の第2列目のベクトルと一致します。1ビットエラーの場合、シンドロームは $H$ のエラー発生位置の列ベクトルに等しくなるため、2ビット目にエラーが発生したと推定されます。")
+            else:
+                st.error("❌ 不正解です。上記の $H$ 行列の各列をよく確認し、縦に $[1, 0, 1]^T$ となっている列を探してみましょう。")
 
 
 # ── サイドバーの情報 ──
@@ -546,6 +776,7 @@ with st.sidebar:
     1. 🔬 サンプリング定理
     2. 🎛️ パルス整形
     3. 📊 AWGN & 変調
+    4. 🛡️ 誤り訂正と符号化
 
     ---
 
